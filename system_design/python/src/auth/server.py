@@ -10,31 +10,31 @@ server.config["MYSQL_HOST"] = os.environ.get("MYSQL_HOST", "localhost")
 server.config["MYSQL_USER"] = os.environ.get("MYSQL_USER", "root")
 server.config["MYSQL_PASSWORD"] = os.environ.get("MYSQL_PASSWORD", "12345678")
 server.config["MYSQL_DB"] = os.environ.get("MYSQL_DB", "auth")
-server.config["MYSQL_PORT"] = os.environ.get("MYSQL_PORT", "3306")
+server.config["MYSQL_PORT"] = int(os.environ.get("MYSQL_PORT", "3306"))
 
 
 @server.route("/login", methods=["POST"])
-def login(request):
+def login():
     auth = request.authorization
     if not auth:
-        return "Missing username or password", 401
+        return "missing credentials", 401
     
-    # Check db for username and password
+    # check db for username and password
     cur = mysql.connection.cursor()
     res = cur.execute(
-        "SELECT * FROM users WHERE email = %s",(auth.username)
+        "SELECT email, password FROM user WHERE email=%s", (auth.username,)
     )
     if res > 0:
-        user_row = res.fetchone()
+        user_row = cur.fetchone()
         email = user_row[0]
         password = user_row[1]
 
         if auth.username != email or auth.password != password:
-            return "Invalid username or password", 403
+            return "invalid credentials", 401
         else:
-            return createJWT(auth.username, os.environ.get("JWT_SECRET", ""), True)
+            return createJWT(auth.username, os.environ.get("JWT_SECRET"), True)
     else:
-        return "Invalid username.", 403
+        return "invalid credentials", 401
     
 @server.route("/validate", methods=["POST"])
 def validate():
@@ -58,12 +58,13 @@ def createJWT(username, secret, authz):
     return jwt.encode(
         {
             "username": username,
-            "exp": datetime.datetime.now(tz=datetime.datetime.utc) + datetime.timedelta(daya=1),
+            "exp": datetime.datetime.now(tz=datetime.timezone.utc)
+            + datetime.timedelta(days=1),
             "iat": datetime.datetime.utcnow(),
-            "admin": authz
+            "admin": authz,
         },
         secret,
-        algorithm="HS256"
+        algorithm="HS256",
     )
 
 if __name__ == "__main__":

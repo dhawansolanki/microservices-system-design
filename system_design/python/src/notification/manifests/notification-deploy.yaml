@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: dhawansolanki/notification:v1
+          image: dhawansolanki/microservice-notification:v1
           envFrom:
             - configMapRef:
                 name: notification-configmap
